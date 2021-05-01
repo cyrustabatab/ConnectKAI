@@ -20,6 +20,8 @@ RED = (255,0,0)
 YELLOW = (255,255,0)
 BLUE = (30,144,255)
 GREEN = (0,255,0)
+BGCOLOR = (144,248,144)
+
 
 
 
@@ -63,9 +65,274 @@ class Button(pygame.sprite.Sprite):
         return self.rect.collidepoint(point)
 
 
+class Menu:
+
+    menu_font = pygame.font.SysFont("calibri",60)
+    def __init__(self,screen_width=800,screen_height=800):
+
+        self.screen = pygame.display.set_mode((screen_width,screen_height))
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.title_text = self.menu_font.render("CONNECT K",True,BLACK)
+        top_gap = 50
+        self.title_text_rect = self.title_text.get_rect(center=(screen_width//2,top_gap + self.title_text.get_height()//2 ))
+        button_width = 350
+        button_height = button_width//2
+        buttons_x = screen_width//2 - button_width//2
+        self.two_player_button = Button(buttons_x,self.title_text_rect.bottom + top_gap,"TWO PLAYER",self.menu_font,button_width,button_height)
+        self.computer_button = Button(buttons_x,self.title_text_rect.bottom + 2 * top_gap + button_height,"COMPUTER",self.menu_font,button_width,button_height)
+        self.buttons = pygame.sprite.Group(self.two_player_button,self.computer_button)
+        self._menu()
+    
+
+    def _standard_or_custom_screen(self):
+        
+
+        
+        gap = 100
+        button_height = (self.screen_height - gap * 3)//2
+        button_width = button_height * 2
+        buttons_x= self.screen_width//2 - button_width//2
+        standard_button = Button(buttons_x,gap,"STANDARD",self.menu_font,button_width,button_height)
+        custom_button = Button(buttons_x,self.screen_height - gap - button_height,"CUSTOM",self.menu_font,button_width,button_height)
+
+        buttons = pygame.sprite.Group(standard_button,custom_button)
+
+
+
+
+        while True:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+
+                    for i,button in enumerate(buttons):
+                        if button.is_clicked_on(point):
+                            if i == 0:
+                                connect_k= ConnectK()
+                                return
+                            else:
+                                self._custom_screen()
+                                return
+
+
+            
+            point = pygame.mouse.get_pos()
+            buttons.update(point)
+
+            self.screen.fill(BGCOLOR)
+            buttons.draw(self.screen)
+
+
+            pygame.display.update()
+
+
+
+
+    def _custom_screen(self):
+
+
+        title_text = self.menu_font.render("CUSTOM GAME",True,BLACK)
+        top_gap = 50
+        title_text_rect = title_text.get_rect(center=(self.screen_width//2,top_gap + title_text.get_height()//2 ))
+
+        cursor_index = 0
+        texts = [f'K: 4|','ROWS: 6','COLS: 7']
+
+
+        lengths = [len(text) - 1 for text in texts]
+
+        lengths[0] -= 1
+        
+        button_width = 350
+        button_height = button_width//2
+        buttons_x =  self.screen_width//2  - button_width//2
+        play_again_button = Button(buttons_x,self.screen_height - 50 - button_height,"START GAME",self.menu_font,button_width,button_height)
+
+        
+
+        button = pygame.sprite.GroupSingle(play_again_button)
+
+
+
+        
+
+        def render_and_draw_texts():
+
+
+            left_gap = 50
+            for i,text in enumerate(texts):
+                text = self.menu_font.render(text,True,BLACK)
+                self.screen.blit(text,(left_gap,title_text_rect.bottom + top_gap + (top_gap + text.get_height()) * i))
+
+
+
+        
+        def get_values():
+
+            
+            values = []
+            for text in texts:
+                index = text.index(' ')
+                last = text[-1]
+                value = text[index:] if last != '|' else text[index:-1]
+                values.append(value)
+
+            return values
+
+
+
+
+
+
+
+        flickering_event = pygame.USEREVENT + 10
+
+        pygame.time.set_timer(flickering_event,200)
+
+        
+        invalid_text = None
+        invalid_font = pygame.font.SysFont("calibri",40)
+
+        while True:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return
+                    
+                    last = texts[cursor_index][-1]
+                    if pygame.K_0 <= event.key <= pygame.K_9:
+                        value = chr(event.key)
+                        last = texts[cursor_index][-1]
+                        if last != '|':
+                            texts[cursor_index] += value 
+                        else:
+                            texts[cursor_index] = texts[cursor_index][:-1] + value + '|'
+                    elif event.key == pygame.K_BACKSPACE:
+                        last = texts[cursor_index][-1]
+                        length = len(texts[cursor_index]) - (1 if last == '|' else 0)
+                        if length != lengths[cursor_index]:
+                            index = -2 if texts[cursor_index][-1] == '|' else -1
+                            texts[cursor_index] = texts[cursor_index][:index]
+                    elif event.key == pygame.K_RETURN:
+                        if cursor_index < 2:
+                            if last == '|':
+                                texts[cursor_index] = texts[cursor_index][:-1]
+                            cursor_index += 1
+                    elif event.key == pygame.K_UP:
+
+                        if cursor_index > 0:
+                            if last == '|':
+                                texts[cursor_index] = texts[cursor_index][:-1]
+                            cursor_index -= 1
+                elif event.type == flickering_event:
+                    last = texts[cursor_index][-1]
+                    if last == '|':
+                        texts[cursor_index] = texts[cursor_index][:-1]
+                    else:
+                        texts[cursor_index] += '|'
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+
+                    if button.sprite.is_clicked_on(point): 
+                        values = get_values()
+                        k,rows,cols = values
+                        valid = True
+                        if any(value == ' ' for value in values):
+                            invalid_text = invalid_font.render("No Empty Values!",True,BLACK)  
+                            invalid_start = time.time()
+                        else:
+                            values = list(map(int,values))
+                            if any(value < 3 for value in values):
+                                invalid_text = invalid_font.render("K, ROWS, and COLS Must All Be At Least 3!",True,BLACK)  
+                                invalid_start = time.time()
+                            else:
+                                print(values)
+
+
+                            
+            if invalid_text:  
+                current_time = time.time()
+                if current_time - invalid_start >= 1:
+                    invalid_text = None
+
+
+
+
+
+
+              
+            point = pygame.mouse.get_pos() 
+            button.update(point)
+            
+
+            self.screen.fill(BGCOLOR)
+            button.draw(self.screen)
+            self.screen.blit(title_text,title_text_rect)
+            render_and_draw_texts()
+
+            if invalid_text:
+                self.screen.blit(invalid_text,(self.screen_width//2 - invalid_text.get_width()//2,self.screen_height - 100 - button_height - invalid_text.get_height()))
+
+
+            pygame.display.update()
+            clock.tick(FPS)
+
+
+
+
+
+
+
+
+
+    
+    def _menu(self):
+
+
+
+        while True:
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+                    for i,button in enumerate(self.buttons):
+                        if button.is_clicked_on(point):
+                            if i == 0:
+                                self._standard_or_custom_screen()
+                                #self._custom_screen()
+                                pygame.display.set_mode((self.screen_width,self.screen_height))
+
+
+
+            
+
+            point = pygame.mouse.get_pos()
+            self.buttons.update(point)
+            
+            self.screen.fill(BGCOLOR)
+
+            self.screen.blit(self.title_text,self.title_text_rect)
+            self.buttons.draw(self.screen)
+            pygame.display.update()
+
 class ConnectK:
 
     font = pygame.font.SysFont("calibri",40)
+    column_full_sound = pygame.mixer.Sound("wrong.wav")
+    pop_sound = pygame.mixer.Sound("pop_sound.wav")
     def __init__(self,rows=6,cols=7,k=4,square_size=100,gap=200):
         self.rows = rows
         self.cols = cols
@@ -79,6 +346,7 @@ class ConnectK:
         self.turn_text = self.red_turn_text if self.turn == 'R' else self.yellow_turn_text
         self.board_height,self.board_width = self.square_size *rows,self.square_size * cols
         self.gap = gap 
+        self.turns = 0
         self.invalid = False
         self.invalid_text = self.font.render("COLUMN FULL!",True,BLACK)
         self.screen_width,self.screen_height = self.board_width + gap ,self.board_height + gap
@@ -123,6 +391,17 @@ class ConnectK:
 
         current_y = self.gap
 
+        center_y = self.square_size//2
+
+
+
+
+
+
+        
+
+        pop_sound_event  = pygame.USEREVENT + 2
+        pygame.time.set_timer(pop_sound_event,100)
 
         while True:
 
@@ -130,15 +409,28 @@ class ConnectK:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                if event.type == pop_sound_event:
+                    self.pop_sound.play()
             
             
             current_y += speed
             if current_y >= target_y:
                 break
+                    
+            
+
+
+
+
+
+
+
+
+
 
             
 
-            self.screen.fill(WHITE)
+            self.screen.fill(BGCOLOR)
             self._draw_board()
             pygame.draw.circle(self.screen,self.color,(col * self.square_size + self.square_size//2,current_y - self.square_size//2),self.square_size//2)
 
@@ -146,7 +438,7 @@ class ConnectK:
             clock.tick(FPS)
 
 
-
+        pygame.time.set_timer(pop_sound_event,0)
 
 
     def _check_game_over(self,board,row,col):
@@ -309,7 +601,6 @@ class ConnectK:
     def _place_piece(self,col):
 
 
-
         row = self.rows - 1
 
         while row >= 0 and self.board[row][col] is not None:
@@ -352,6 +643,8 @@ class ConnectK:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
                 if not invalid and event.type == pygame.MOUSEBUTTONDOWN:
                     point = pygame.mouse.get_pos()
                     
@@ -367,9 +660,13 @@ class ConnectK:
                                     winner,color = ('RED',RED) if self.turn == 'R' else ('YELLOW',YELLOW)
                                     self.winner_text= self.font.render(f"{winner} WINS!",True,color)
                                     self.game_over= True
-
+                                self.turns += 1
+                                if not self.game_over and self.turns == self.rows * self.cols:
+                                    self.winner_text = self.font.render(f"TIE!",True,BLACK)
+                                    self.game_over = True
                                 self._switch_turns()
                             else:
+                                self.column_full_sound.play()
                                 self.invalid = True
                                 invalid_start_time = time.time()
 
@@ -380,6 +677,8 @@ class ConnectK:
                                 if i == 0:
                                     winning_squares = None
                                     self._reset()
+                                else:
+                                    return
 
 
             
@@ -396,7 +695,7 @@ class ConnectK:
 
 
             
-            self.screen.fill(WHITE)
+            self.screen.fill(BGCOLOR)
             
 
             if not self.game_over:
@@ -441,7 +740,7 @@ class ConnectK:
 if __name__ == "__main__":
     
 
-    connect_4 = ConnectK()
+    menu = Menu()
 
 
         
