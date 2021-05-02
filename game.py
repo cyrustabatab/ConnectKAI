@@ -6,7 +6,7 @@ pygame.init()
 
 clock = pygame.time.Clock()
 
-pygame.display.set_caption("CONNECT 4")
+pygame.display.set_caption("CONNECT K")
 
 SQUARE_SIZE = 100
 ROWS,COLS = 6,7
@@ -17,7 +17,9 @@ FPS = 60
 BLACK = (0,) * 3
 WHITE = (255,) * 3
 RED = (255,0,0)
+TRANSPARENT_RED = (255,0,0,128)
 YELLOW = (255,255,0)
+TRANSPARENT_YELLOW = (255,255,0,128)
 BLUE = (30,144,255)
 GREEN = (0,255,0)
 BGCOLOR = (144,248,144)
@@ -84,6 +86,59 @@ class Menu:
         self.buttons = pygame.sprite.Group(self.two_player_button,self.computer_button)
         self._menu()
     
+    
+
+    def _gravity_or_no_gravity_screen(self):
+
+        gap = 100
+        button_height = (self.screen_height - gap * 3)//2
+        button_width = button_height * 2
+        buttons_x= self.screen_width//2 - button_width//2
+        gravity_button = Button(buttons_x,gap,"GRAVITY",self.menu_font,button_width,button_height)
+        no_gravity_button = Button(buttons_x,self.screen_height - gap - button_height,"NO GRAVITY",self.menu_font,button_width,button_height)
+
+        buttons = pygame.sprite.Group()
+
+        buttons.add(gravity_button,no_gravity_button)
+
+
+
+        while True:
+
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+
+                    for i,button in enumerate(buttons):
+                        if button.is_clicked_on(point):
+                            if i == 0:
+                                return True
+                            else:
+                                return False
+                            
+
+
+                
+
+
+            point = pygame.mouse.get_pos() 
+            buttons.update(point)
+
+
+            self.screen.fill(BGCOLOR)
+            buttons.draw(self.screen)
+            pygame.display.update()
+
+
+
+
+
+
 
     def _standard_or_custom_screen(self):
         
@@ -100,7 +155,7 @@ class Menu:
 
 
 
-
+        default_values = (4,6,7)
         while True:
 
             for event in pygame.event.get():
@@ -113,11 +168,10 @@ class Menu:
                     for i,button in enumerate(buttons):
                         if button.is_clicked_on(point):
                             if i == 0:
-                                connect_k= ConnectK()
-                                return
+                                return default_values
                             else:
-                                self._custom_screen()
-                                return
+                                result= self._custom_screen()
+                                return result
 
 
             
@@ -233,6 +287,12 @@ class Menu:
                             if last == '|':
                                 texts[cursor_index] = texts[cursor_index][:-1]
                             cursor_index -= 1
+                    elif event.key == pygame.K_DOWN:
+
+                        if cursor_index < 2:
+                            if last == '|':
+                                texts[cursor_index] = texts[cursor_index][:-1]
+                            cursor_index += 1
                 elif event.type == flickering_event:
                     last = texts[cursor_index][-1]
                     if last == '|':
@@ -255,7 +315,7 @@ class Menu:
                                 invalid_text = invalid_font.render("K, ROWS, and COLS Must All Be At Least 3!",True,BLACK)  
                                 invalid_start = time.time()
                             else:
-                                print(values)
+                                return values
 
 
                             
@@ -311,8 +371,12 @@ class Menu:
                     for i,button in enumerate(self.buttons):
                         if button.is_clicked_on(point):
                             if i == 0:
-                                self._standard_or_custom_screen()
+                                gravity = self._gravity_or_no_gravity_screen()
+                                k,rows,cols = self._standard_or_custom_screen()
+                                square_size = BOARD_HEIGHT//rows
+                                connect_k = ConnectK(rows,cols,k,square_size,gravity=gravity)
                                 #self._custom_screen()
+                                pygame.display.set_caption("Connect K")
                                 pygame.display.set_mode((self.screen_width,self.screen_height))
 
 
@@ -333,18 +397,21 @@ class ConnectK:
     font = pygame.font.SysFont("calibri",40)
     column_full_sound = pygame.mixer.Sound("wrong.wav")
     pop_sound = pygame.mixer.Sound("pop_sound.wav")
-    def __init__(self,rows=6,cols=7,k=4,square_size=100,gap=200):
+    def __init__(self,rows=6,cols=7,k=4,square_size=100,gap=200,gravity=True):
         self.rows = rows
         self.cols = cols
         self.board = [[None for _ in range(cols)] for _ in range(rows)]
         self.square_size = square_size
         self.turn = random.choice(('R','Y'))
         self.k = k
+        s = 'NO GRAVITY' if not gravity else 'GRAVITY'
+        pygame.display.set_caption(f"CONNECT {str(k)} {s}")
         self.color = RED if self.turn == 'R' else YELLOW
         self.red_turn_text = self.font.render("RED'S TURN!",True,RED)
         self.yellow_turn_text = self.font.render("YELLOW'S TURN!",True,YELLOW)
         self.turn_text = self.red_turn_text if self.turn == 'R' else self.yellow_turn_text
         self.board_height,self.board_width = self.square_size *rows,self.square_size * cols
+        self.gravity = gravity
         self.gap = gap 
         self.turns = 0
         self.invalid = False
@@ -458,9 +525,9 @@ class ConnectK:
         while current_row >= 0 and board[current_row][col] == turn:
             up_count += 1
             winners.add((current_row,col))
-            if up_count == 4:
+            if up_count == self.k:
                 print('up')
-                return True,self.turn
+                return True,self.turn,winners
             current_row -= 1
 
         
@@ -473,14 +540,14 @@ class ConnectK:
         while current_row < len(board) and board[current_row][col] == turn:
             down_count += 1
             winners.add((current_row,col))
-            if down_count == 4:
+            if down_count == self.k:
                 print('down')
                 return True,self.turn,winners
 
 
             current_row += 1
 
-        if down_count + up_count  - 1>= 4:
+        if down_count + up_count  - 1>= self.k:
             winners = {(i,col) for i in range(current_row -1,current_row -5,-1)}
             return True,turn,winners
         
@@ -492,7 +559,7 @@ class ConnectK:
         while current_col >= 0 and board[row][current_col] == turn:
             left_count += 1
             winners.add((row,current_col))
-            if left_count == 4:
+            if left_count == self.k:
                 print('left')
                 return True,turn,winners
             current_col -= 1
@@ -504,14 +571,14 @@ class ConnectK:
         while current_col < len(board[0]) and board[row][current_col] == turn:
             right_count += 1
             winners.add((row,current_col))
-            if right_count == 4:
+            if right_count == self.k:
                 print('right')
                 return True,turn,winners
             
             current_col += 1
 
 
-        if left_count + right_count - 1 >= 4:        
+        if left_count + right_count - 1 >= self.k:        
             winners = {(row,i) for i in range(current_col - 1,current_col - 5,-1)}
             return True,turn,winners
 
@@ -524,7 +591,7 @@ class ConnectK:
         while current_row >= 0 and current_col >= 0 and board[current_row][current_col] == turn:
             up_left_count += 1
             winners.add((current_row,current_col))
-            if up_left_count == 4:
+            if up_left_count == self.k:
                 return True,turn,winners
             current_row -= 1
             current_col -= 1
@@ -538,7 +605,7 @@ class ConnectK:
         while current_row < len(board) and current_col < len(board[0]) and board[current_row][current_col] == turn:
             down_right_count += 1
             winners.add((current_row,current_col))
-            if down_right_count == 4:
+            if down_right_count == self.k:
                 return True,turn,winners
 
             current_row += 1
@@ -546,7 +613,7 @@ class ConnectK:
 
 
         if up_left_count + down_right_count - 1 >= self.k:
-            winners = {(current_row - 1 - i,current_col - 1 - i) for i in range(4)}
+            winners = {(current_row - 1 - i,current_col - 1 - i) for i in range(self.k)}
             return True,turn,winners
 
 
@@ -581,7 +648,7 @@ class ConnectK:
 
 
         if down_left_count  + up_right_count - 1 >= self.k:
-            winners = {(current_row + 1 + i,current_col - 1 - i) for i in range(4)}
+            winners = {(current_row + 1 + i,current_col - 1 - i) for i in range(self.k)}
             return True,turn,winners
 
 
@@ -616,6 +683,7 @@ class ConnectK:
         self.game_over = False
         self.board = [[None for _ in range(self.cols)] for _ in range(self.rows)] 
         self.turn = random.choice(('R','Y'))
+        self.turns = 0
         self.color = RED if self.turn == 'R' else YELLOW
         self.turn_text = self.red_turn_text if self.turn == 'R' else self.yellow_turn_text
 
@@ -649,11 +717,22 @@ class ConnectK:
                     point = pygame.mouse.get_pos()
                     
                     if not self.game_over:
-                        x,_ = point
 
+                        x,y = point
+                    
                         if x <= self.board_width:
                             col = x//self.square_size
-                            row = self._place_piece(col)
+                            if self.gravity:
+                                row = self._place_piece(col)
+                            else:
+                                if y >= self.gap:
+                                    row = (y - self.gap)//self.square_size
+                                    if self.board[row][col] is None:
+                                        self.board[row][col] = self.turn
+                                    else:
+                                        row = None
+                                else:
+                                    row = None
                             if row is not None:
                                 game_over,_,winning_squares = self._check_game_over(self.board,row,col)
                                 if game_over:
@@ -665,7 +744,7 @@ class ConnectK:
                                     self.winner_text = self.font.render(f"TIE!",True,BLACK)
                                     self.game_over = True
                                 self._switch_turns()
-                            else:
+                            elif self.gravity:
                                 self.column_full_sound.play()
                                 self.invalid = True
                                 invalid_start_time = time.time()
@@ -692,18 +771,23 @@ class ConnectK:
 
             
             point = pygame.mouse.get_pos()
+            x,y = point
 
 
             
             self.screen.fill(BGCOLOR)
             
 
-            if not self.game_over:
-                x,_ = point
-                
+            if not self.game_over and self.gravity:
+                    
                 if x <= self.board_width:
                     col = x//self.square_size
+                    
                     pygame.draw.circle(self.screen,self.color,(col * self.square_size + self.square_size//2,self.gap - self.square_size//2),self.square_size//2)
+
+
+
+
             else:
                 buttons.update(point)
                 buttons.draw(self.screen)
@@ -711,6 +795,16 @@ class ConnectK:
             
             
             self._draw_board(winning_squares)
+
+            if not self.gravity:
+                if x <= self.board_width and y >= self.gap:
+                    col = x//self.square_size
+                    row = (y - self.gap) //self.square_size
+                    if self.board[row][col] is None:
+                        transparent_surface = pygame.Surface((self.square_size,self.square_size),pygame.SRCALPHA)
+                        color = TRANSPARENT_YELLOW if self.color == YELLOW else TRANSPARENT_RED
+                        pygame.draw.circle(transparent_surface,color,(self.square_size//2,self.square_size//2),self.square_size//2)
+                        self.screen.blit(transparent_surface,(col * self.square_size,self.gap + row * self.square_size))
             self._draw_text()
 
             pygame.display.update()
