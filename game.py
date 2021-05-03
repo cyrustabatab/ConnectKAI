@@ -66,7 +66,7 @@ class Button(pygame.sprite.Sprite):
         return self.rect.collidepoint(point)
 
 class Menu:
-
+    
     class BackButton(pygame.sprite.Sprite):
 
         def __init__(self,x,y):
@@ -102,6 +102,8 @@ class Menu:
         self.two_player_button = Button(buttons_x,self.title_text_rect.bottom + top_gap,"TWO PLAYER",self.menu_font,button_width,button_height)
         self.computer_button = Button(buttons_x,self.title_text_rect.bottom + 2 * top_gap + button_height,"COMPUTER",self.menu_font,button_width,button_height)
         self.buttons = pygame.sprite.Group(self.two_player_button,self.computer_button)
+        pygame.mixer.music.load('mainmenu.ogg')
+        pygame.mixer.music.play(-1)
 
         self.back_button = self.BackButton(5,5)
 
@@ -413,6 +415,9 @@ class Menu:
                                             square_size = BOARD_HEIGHT//rows
                                             connect_k = ConnectK(rows,cols,k,square_size,gravity=gravity)
                                             #self._custom_screen()
+                                            pygame.mixer.music.stop()
+                                            pygame.mixer.music.load('mainmenu.ogg')
+                                            pygame.mixer.music.play(-1)
                                             pygame.display.set_caption("Connect K")
                                             pygame.display.set_mode((self.screen_width,self.screen_height))
                                             break
@@ -460,6 +465,8 @@ class ConnectK:
         self.invalid_text_no_gravity = self.font.render("SQUARE TAKEN!",True,BLACK)
         self.screen_width,self.screen_height = self.board_width + gap ,self.board_height + gap
         self.screen = pygame.display.set_mode((self.screen_width,self.screen_height))
+        pygame.mixer.music.load('music.ogg')
+        pygame.mixer.music.play(-1)
         self.game_over = False
         self._play_game()
 
@@ -762,18 +769,20 @@ class ConnectK:
 
                         x,y = point
                     
-                        if x <= self.board_width:
+                        if x < self.board_width:
                             col = x//self.square_size
                             if self.gravity:
                                 row = self._place_piece(col)
                             else:
-                                if y >= self.gap:
+                                if y > self.gap:
                                     row = (y - self.gap)//self.square_size
                                     if self.board[row][col] is None:
                                         self.pop_sound.play()
                                         self.board[row][col] = self.turn
                                     else:
                                         self.column_full_sound.play()
+                                        self.invalid = True
+                                        invalid_start_time = time.time()
                                         row = None
                                 else:
                                     row = None
@@ -788,7 +797,7 @@ class ConnectK:
                                     self.winner_text = self.font.render(f"TIE!",True,BLACK)
                                     self.game_over = True
                                 self._switch_turns()
-                            else:
+                            elif self.gravity:
                                 self.column_full_sound.play()
                                 self.invalid = True
                                 invalid_start_time = time.time()
@@ -838,8 +847,8 @@ class ConnectK:
             
             self._draw_board(winning_squares)
 
-            if not self.gravity:
-                if x <= self.board_width and y >= self.gap:
+            if not self.gravity and not self.game_over:
+                if x < self.board_width and y > self.gap:
                     col = x//self.square_size
                     row = (y - self.gap) //self.square_size
                     if self.board[row][col] is None:
