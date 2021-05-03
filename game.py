@@ -7,7 +7,6 @@ pygame.init()
 clock = pygame.time.Clock()
 
 pygame.display.set_caption("CONNECT K")
-
 SQUARE_SIZE = 100
 ROWS,COLS = 6,7
 BOARD_HEIGHT,BOARD_WIDTH = SQUARE_SIZE * ROWS,SQUARE_SIZE * COLS
@@ -66,8 +65,27 @@ class Button(pygame.sprite.Sprite):
 
         return self.rect.collidepoint(point)
 
-
 class Menu:
+
+    class BackButton(pygame.sprite.Sprite):
+
+        def __init__(self,x,y):
+            super().__init__()
+
+            self.image = pygame.transform.scale(pygame.image.load('back.png').convert_alpha(),(50,50))
+            self.rect = self.image.get_rect(topleft=(x,y))
+
+
+
+        def draw(self,screen):
+            screen.blit(self.image,self.rect)
+
+
+        def is_clicked_on(self,point):
+            return self.rect.collidepoint(point)
+
+
+
 
     menu_font = pygame.font.SysFont("calibri",60)
     def __init__(self,screen_width=800,screen_height=800):
@@ -84,6 +102,9 @@ class Menu:
         self.two_player_button = Button(buttons_x,self.title_text_rect.bottom + top_gap,"TWO PLAYER",self.menu_font,button_width,button_height)
         self.computer_button = Button(buttons_x,self.title_text_rect.bottom + 2 * top_gap + button_height,"COMPUTER",self.menu_font,button_width,button_height)
         self.buttons = pygame.sprite.Group(self.two_player_button,self.computer_button)
+
+        self.back_button = self.BackButton(5,5)
+
         self._menu()
     
     
@@ -121,8 +142,9 @@ class Menu:
                             else:
                                 return False
                             
-
-
+                    if self.back_button.is_clicked_on(point):
+                        return
+        
                 
 
 
@@ -132,6 +154,7 @@ class Menu:
 
             self.screen.fill(BGCOLOR)
             buttons.draw(self.screen)
+            self.back_button.draw(self.screen) 
             pygame.display.update()
 
 
@@ -171,8 +194,12 @@ class Menu:
                                 return default_values
                             else:
                                 result= self._custom_screen()
-                                return result
+                                if result is not None:
+                                    return result
+                                break
 
+                    if self.back_button.is_clicked_on(point):
+                        return
 
             
             point = pygame.mouse.get_pos()
@@ -180,6 +207,7 @@ class Menu:
 
             self.screen.fill(BGCOLOR)
             buttons.draw(self.screen)
+            self.back_button.draw(self.screen)
 
 
             pygame.display.update()
@@ -311,13 +339,17 @@ class Menu:
                             invalid_start = time.time()
                         else:
                             values = list(map(int,values))
+                            k,rows,cols = values
                             if any(value < 3 for value in values):
                                 invalid_text = invalid_font.render("K, ROWS, and COLS Must All Be At Least 3!",True,BLACK)  
                                 invalid_start = time.time()
+                            elif k > rows and k > cols:
+                                invalid_text = invalid_font.render("K MUST BE NO BIGGER THAN ROWS OR COLS",True,BLACK)  
+                                invalid_start = time.time()
                             else:
                                 return values
-
-
+                    elif self.back_button.is_clicked_on(point):
+                        return
                             
             if invalid_text:  
                 current_time = time.time()
@@ -337,6 +369,7 @@ class Menu:
             self.screen.fill(BGCOLOR)
             button.draw(self.screen)
             self.screen.blit(title_text,title_text_rect)
+            self.back_button.draw(self.screen)
             render_and_draw_texts()
 
             if invalid_text:
@@ -371,13 +404,21 @@ class Menu:
                     for i,button in enumerate(self.buttons):
                         if button.is_clicked_on(point):
                             if i == 0:
-                                gravity = self._gravity_or_no_gravity_screen()
-                                k,rows,cols = self._standard_or_custom_screen()
-                                square_size = BOARD_HEIGHT//rows
-                                connect_k = ConnectK(rows,cols,k,square_size,gravity=gravity)
-                                #self._custom_screen()
-                                pygame.display.set_caption("Connect K")
-                                pygame.display.set_mode((self.screen_width,self.screen_height))
+                                while True:
+                                    gravity = self._gravity_or_no_gravity_screen()
+                                    if gravity is not None:
+                                        result= self._standard_or_custom_screen()
+                                        if result is not None:
+                                            k,rows,cols = result
+                                            square_size = BOARD_HEIGHT//rows
+                                            connect_k = ConnectK(rows,cols,k,square_size,gravity=gravity)
+                                            #self._custom_screen()
+                                            pygame.display.set_caption("Connect K")
+                                            pygame.display.set_mode((self.screen_width,self.screen_height))
+                                            break
+                                    else:
+                                        break
+
 
 
 
@@ -416,6 +457,7 @@ class ConnectK:
         self.turns = 0
         self.invalid = False
         self.invalid_text = self.font.render("COLUMN FULL!",True,BLACK)
+        self.invalid_text_no_gravity = self.font.render("SQUARE TAKEN!",True,BLACK)
         self.screen_width,self.screen_height = self.board_width + gap ,self.board_height + gap
         self.screen = pygame.display.set_mode((self.screen_width,self.screen_height))
         self.game_over = False
@@ -728,8 +770,10 @@ class ConnectK:
                                 if y >= self.gap:
                                     row = (y - self.gap)//self.square_size
                                     if self.board[row][col] is None:
+                                        self.pop_sound.play()
                                         self.board[row][col] = self.turn
                                     else:
+                                        self.column_full_sound.play()
                                         row = None
                                 else:
                                     row = None
@@ -744,7 +788,7 @@ class ConnectK:
                                     self.winner_text = self.font.render(f"TIE!",True,BLACK)
                                     self.game_over = True
                                 self._switch_turns()
-                            elif self.gravity:
+                            else:
                                 self.column_full_sound.play()
                                 self.invalid = True
                                 invalid_start_time = time.time()
@@ -786,9 +830,7 @@ class ConnectK:
                     pygame.draw.circle(self.screen,self.color,(col * self.square_size + self.square_size//2,self.gap - self.square_size//2),self.square_size//2)
 
 
-
-
-            else:
+            if self.game_over:
                 buttons.update(point)
                 buttons.draw(self.screen)
                 
@@ -814,6 +856,11 @@ class ConnectK:
 
 
         text = self.invalid_text if self.invalid else self.turn_text if not self.game_over else self.winner_text 
+        if text is self.invalid_text:
+            if not self.gravity:
+                text = self.invalid_text_no_gravity
+
+
         self.screen.blit(text,(self.board_width//2 - text.get_width()//2,50))
 
 
