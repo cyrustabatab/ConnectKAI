@@ -405,26 +405,30 @@ class Menu:
                     point = pygame.mouse.get_pos()
                     for i,button in enumerate(self.buttons):
                         if button.is_clicked_on(point):
-                            if i == 0:
-                                while True:
-                                    gravity = self._gravity_or_no_gravity_screen()
-                                    if gravity is not None:
-                                        result= self._standard_or_custom_screen()
-                                        if result is not None:
-                                            k,rows,cols = result
-                                            square_size = BOARD_HEIGHT//rows
-                                            connect_k = ConnectK(rows,cols,k,square_size,gravity=gravity)
-                                            #self._custom_screen()
-                                            pygame.mixer.music.stop()
-                                            pygame.mixer.music.load('mainmenu.ogg')
-                                            pygame.mixer.music.play(-1)
-                                            pygame.display.set_caption("Connect K")
-                                            pygame.display.set_mode((self.screen_width,self.screen_height))
-                                            break
-                                    else:
+                            while True:
+                                gravity = self._gravity_or_no_gravity_screen()
+                                if gravity is not None:
+                                    result= self._standard_or_custom_screen()
+                                    if result is not None:
+                                        k,rows,cols = result
+                                        square_size = BOARD_HEIGHT//rows
+                                        class_ = ConnectK if i ==0 else ConnectKAI
+
+                                        connect_k = class_(rows,cols,k,square_size,gravity=gravity)
+                                        #self._custom_screen()
+                                        pygame.mixer.music.stop()
+                                        pygame.mixer.music.load('mainmenu.ogg')
+                                        pygame.mixer.music.play(-1)
+                                        pygame.display.set_caption("Connect K")
+                                        pygame.display.set_mode((self.screen_width,self.screen_height))
                                         break
+                                else:
+                                    break
+                                
 
 
+
+                        
 
 
             
@@ -453,9 +457,7 @@ class ConnectK:
         s = 'NO GRAVITY' if not gravity else 'GRAVITY'
         pygame.display.set_caption(f"CONNECT {str(k)} {s}")
         self.color = RED if self.turn == 'R' else YELLOW
-        self.red_turn_text = self.font.render("RED'S TURN!",True,RED)
-        self.yellow_turn_text = self.font.render("YELLOW'S TURN!",True,YELLOW)
-        self.turn_text = self.red_turn_text if self.turn == 'R' else self.yellow_turn_text
+        self._initialize_turn_text()
         self.board_height,self.board_width = self.square_size *rows,self.square_size * cols
         self.gravity = gravity
         self.gap = gap 
@@ -469,7 +471,12 @@ class ConnectK:
         pygame.mixer.music.play(-1)
         self.game_over = False
         self._play_game()
+    
 
+    def _initialize_turn_text(self):
+        self.yellow_turn_text = self.font.render("YELLOW'S TURN!",True,YELLOW)
+        self.turn_text = self.red_turn_text if self.turn == 'R' else self.yellow_turn_text
+        self.board_height,self.board_width = self.square_size *rows,self.square_size * cols
     
     
     def _draw_board(self,winners=None):
@@ -884,6 +891,199 @@ class ConnectK:
             self.turn = 'R'
             self.color = RED
             self.turn_text = self.red_turn_text
+
+
+class ConnectKAI(ConnectK):
+
+    
+    def _initialize_turn_text(self):
+        self.player_turn_text = self.font.render("YOUR TURN!",True,BLACK)
+        self.ai_turn_text = self.font.render("AI'S TURN!",True,BLACK)
+        self.player_piece = random.choice(('R','Y'))
+        self.computer_piece = 'Y' if self.player_piece == 'R' else 'R'
+        self.turn_text = self.player_turn_text if self.player_piece == self.turn  else self.ai_turn_text
+
+
+    def _switch_turns(self):
+
+        if self.turn == 'R':
+            self.turn ='Y'
+            self.color = YELLOW
+        else:
+            self.turn = 'R'
+            self.color = RED
+
+
+        self.turn_text = self.player_turn_text if self.turn == self.player_piece else self.ai_turn_text
+
+
+
+    def _play_game(self):
+
+        
+        buttons = pygame.sprite.Group()
+        
+        button_width = 150
+        button_height = button_width/2
+        
+        buttons_x = self.board_width + (self.screen_width - self.board_width)//2 - button_width//2
+        button_font = pygame.font.SysFont("calibri",30)
+
+        play_again_button = Button(buttons_x,self.gap + 50,"PLAY AGAIN",button_font,button_width,button_height)
+        menu_button = Button(buttons_x,self.gap + 100 + button_height,"MENU",button_font,button_width,button_height)
+        buttons.add(play_again_button,menu_button)
+
+        winning_squares = None
+        invalid = False
+        computer_start_time = None
+
+
+        def set_up_game_over():
+            game_over,_,winning_squares = self._check_game_over(self.board,row,col)
+            if game_over:
+                winner,color = ('YOU WIN',BLACK) if self.turn == self.player_piece else ('AI WINS!',YELLOW)
+                self.winner_text= self.font.render(winner,True,color)
+                self.game_over= True
+            self.turns += 1
+            if not self.game_over and self.turns == self.rows * self.cols:
+                self.winner_text = self.font.render(f"TIE!",True,BLACK)
+                self.game_over = True
+
+        while True:
+            
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if not invalid and event.type == pygame.MOUSEBUTTONDOWN:
+                    point = pygame.mouse.get_pos()
+                    
+                    if self.turn == self.player_piece and not self.game_over:
+
+                        x,y = point
+                    
+                        if x < self.board_width:
+                            col = x//self.square_size
+                            if self.gravity:
+                                row = self._place_piece(col)
+                            else:
+                                if y > self.gap:
+                                    row = (y - self.gap)//self.square_size
+                                    if self.board[row][col] is None:
+                                        self.pop_sound.play()
+                                        self.board[row][col] = self.turn
+                                    else:
+                                        self.column_full_sound.play()
+                                        self.invalid = True
+                                        invalid_start_time = time.time()
+                                        row = None
+                                else:
+                                    row = None
+                            if row is not None:
+                                game_over,_,winning_squares = self._check_game_over(self.board,row,col)
+                                if game_over:
+                                    winner,color = ('YOU WIN',BLACK) if self.turn == self.player_piece else ('AI WINS!',YELLOW)
+                                    self.winner_text= self.font.render(winner,True,color)
+                                    self.game_over= True
+                                self.turns += 1
+                                if not self.game_over and self.turns == self.rows * self.cols:
+                                    self.winner_text = self.font.render(f"TIE!",True,BLACK)
+                                    self.game_over = True
+                                self._switch_turns()
+                            elif self.gravity:
+                                self.column_full_sound.play()
+                                self.invalid = True
+                                invalid_start_time = time.time()
+
+                    else:
+
+                        for i,button in enumerate(buttons):
+                            if button.is_clicked_on(point):
+                                if i == 0:
+                                    winning_squares = None
+                                    self._reset()
+                                else:
+                                    return
+
+            current_time = time.time()
+            if self.invalid:
+
+                if current_time - invalid_start_time >= 1:
+                    self.invalid = False
+
+            if not self.invalid and self.turn == self.computer_piece:
+
+                if not computer_start_time:
+                    computer_start_time = time.time()
+                else:
+                    if current_time - computer_start_time >= 2:
+                        computer_start_time = None
+                if computer_start_time is None:
+                    row = self._make_random_move()
+                    set_up_game_over()
+            
+
+
+
+            
+            point = pygame.mouse.get_pos()
+            x,y = point
+
+
+            
+            self.screen.fill(BGCOLOR)
+            
+
+            if not self.game_over and self.turn == self.player_piece and self.gravity:
+                    
+                if x <= self.board_width:
+                    col = x//self.square_size
+                    
+                    pygame.draw.circle(self.screen,self.color,(col * self.square_size + self.square_size//2,self.gap - self.square_size//2),self.square_size//2)
+
+
+            if self.game_over:
+                buttons.update(point)
+                buttons.draw(self.screen)
+                
+            
+            
+            self._draw_board(winning_squares)
+
+            if not self.gravity and not self.game_over and self.turn == self.player_piece:
+                if x < self.board_width and y > self.gap:
+                    col = x//self.square_size
+                    row = (y - self.gap) //self.square_size
+                    if self.board[row][col] is None:
+                        transparent_surface = pygame.Surface((self.square_size,self.square_size),pygame.SRCALPHA)
+                        color = TRANSPARENT_YELLOW if self.color == YELLOW else TRANSPARENT_RED
+                        pygame.draw.circle(transparent_surface,color,(self.square_size//2,self.square_size//2),self.square_size//2)
+                        self.screen.blit(transparent_surface,(col * self.square_size,self.gap + row * self.square_size))
+
+            self._draw_text()
+
+            pygame.display.update()
+            clock.tick(FPS)
+    
+
+    
+    def _make_random_move(self):
+
+        col = random.randint(0,self.cols - 1)
+    
+        valid_cols = []
+        for col in range(self.cols):
+            if self.board[0][col] is None:
+                valid_cols.append(col)
+        
+        col = random.choice(valid_cols)
+        return self._place_piece(col)
+
+
+
 
 
 
