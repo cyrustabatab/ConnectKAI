@@ -1129,16 +1129,29 @@ class ConnectKAI(ConnectK):
         self._initialize_turn_text()
 
     def _make_random_move(self):
-
-        col = random.randint(0,self.cols - 1)
-
-        valid_cols = []
-        for col in range(self.cols):
-            if self.board[0][col] is None:
-                valid_cols.append(col)
         
-        col = random.choice(valid_cols)
-        return self._place_piece(col),col
+
+        if self.gravity:
+
+            valid_cols = []
+            for col in range(self.cols):
+                if self.board[0][col] is None:
+                    valid_cols.append(col)
+            
+            col = random.choice(valid_cols)
+            row = self._place_piece(col)
+        else:
+            
+            empty_slots = []
+            for row in range(self.rows):
+                for col in range(self.cols):
+                    if self.board[row][col] is None:
+                        empty_slots.append((row,col))
+            
+
+            row,col = random.choice(empty_slots)
+            self.board[row][col] = self.computer_piece
+        return row,col
 
 
 
