@@ -581,7 +581,7 @@ class ConnectK:
         pygame.time.set_timer(pop_sound_event,0)
 
 
-    def _check_game_over(self,board,row,col):
+    def _check_game_over(self,board,row,col,ai=False):
         # pass in board for future use in AI class that will inherit from this class
 
 
@@ -592,7 +592,7 @@ class ConnectK:
         current_row = row - 1
         
         up_count = 1
-
+        
         winners = {(row,col)}
 
         while current_row >= 0 and board[current_row][col] == turn:
@@ -1127,9 +1127,244 @@ class ConnectKAI(ConnectK):
         self.board = [[None for _ in range(self.cols)] for _ in range(self.rows)] 
         self.turns = 0
         self._initialize_turn_text()
+    
+    
+    def ai_make_move(self):
+
+
+        board_copy = deepcopy(self.board)
+        
+        depth = 4
+        self._minimax(board_copy,depth)
+   
+
+    def _get_moves(self,board):
+
+
+        moves = set()
+
+        for col in range(self.cols):
+            if board[0][col] is None:
+                moves.add(col)
+        
+
+        return moves
+
+    
+
+    
+    def _is_terminal_state(self,board):
+
+
+        game_over,winner,_ = self._check_game_over(board)
+
+
+        if winner:
+            return True,winner
+
+        for col in range(self.cols):
+            if board[0][col] is None:
+                break
+        else:
+            # has to be draw
+            return True,None
+
+
+        return False,None
+
+    
+    def _heuristic(self,board,winner):
+
+        
+
+        def _check_three_in_a_row(row,col):
+            
+            ai_count = player_count = 0
+            
+
+            def update_ai_or_player(piece):
+                nonlocal ai_count,nonlocal player_count 
+                if piece == self.computer_piece:
+                    ai_count += 1
+                else:
+                    player_count += 1
+
+
+            # check to left
+            if current_col - 1 >= 0 and board[row][current_col - 1]:
+                piece = board[row][current_col - 1]
+                count = 1
+
+
+                current_col -= 2
+
+                while current_col >= 0 and board[row][current_col] == piece:
+                    count += 1
+                    current_col -= 1
+                
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
+        
+                
+
+
+            # check to right
+
+            if current_col + 1 < self.cols and board[row][current_col + 1]:
+                piece = board[row][current_col + 1]
+
+                current_col += 2
+                count = 1
+                while current_col < self.cols and board[row][current_col] == piece:
+                    count += 1
+                    current_col += 1
+
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
+
+
+            #  check up
+
+    
+            if current_row - 1 >= 0 and board[current_row -1][col]:
+                piece = board[current_row -1][col]
+
+                current_row -= 2
+                count = 1
+
+                while current_row >= 0 and board[current_row][col] == piece:
+                    count += 1
+                    current_row -= 1
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
+
+
+            # check down
+
+            if current_row + 1 < self.rows and board[current_row + 1][col]:
+                piece = board[current_row + 1][col]
+
+
+                current_row += 2
+                count = 1
+
+                while current_row < self.rows  and board[current_row][col] == piece:
+                    count += 1
+                    current_row += 1
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
+
+
+
+
+
+
+        if winner == self.ai_piece:
+            return 100
+        elif winner == self.player_piece:
+            return -100
+        else:
+            return 0
+
+    
+        three_in_row_with_open_ai = three_in_a_row_with_open_player = 0 
+
+
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if board[row][col] is None:
+                    self._check_three_in_row(
+
+
+
+
+
+
+
+        
+
+        
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def _minimax(self,board,depth=4,ai=True,move=None):
+
+
+
+        
+        terminal_state = self._is_terminal_state(board) 
+
+        if terminal_state or depth == 0:
+            return self._heuristic(board,move)
+
+
+        
+
+        if ai:
+            bestValue = float("-inf")
+            bestMove = None
+            for move in self._get_moves(board):
+                new_board = self._make_move(board,move)
+
+                result = self._minimax(new_board,depth - 1,not ai,move)
+                if result > maxValue:
+                    bestValue = result
+                    bestMove = move
+        else:            
+            bestValue = float("inf")
+            bestMove = None
+            for move in self._get_moves(board):
+                new_board = self._make_move(board)
+
+                result = self._minimax(new_board,depth - 1,not ai,move)
+                if result< maxValue:
+                    bestValue = result
+                    bestMove = move
+
+
+        reutrn 
+
+
+
+
 
     def _make_random_move(self):
-        
 
         if self.gravity:
 
@@ -1137,7 +1372,7 @@ class ConnectKAI(ConnectK):
             for col in range(self.cols):
                 if self.board[0][col] is None:
                     valid_cols.append(col)
-            
+
             col = random.choice(valid_cols)
             row = self._place_piece(col)
         else:
