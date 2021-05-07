@@ -1259,9 +1259,100 @@ class ConnectKAI(ConnectK):
                     update_ai_or_player(piece)
 
 
+            # check up left
+
+            current_row = row - 1
+            current_col = col - 1
+
+            if current_row -1 >= 0 and current_col >= 0 and board[current_row][current_col]:
+                piece = board[current_row -1][current_col -1]
+
+                current_row -= 2
+                current_col -= 2
 
 
+                count = 1
 
+                while current_row >= 0 and current_col >= 0 and board[current_row][current_col] == piece:
+                    count += 1
+                    current_row -= 1
+                    current_col -= 1
+                
+
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
+
+            # top right 
+            current_row = row - 1
+            current_col = col + 1
+
+            if current_row -1 >= 0 and current_col < self.cols and board[current_row][current_col]:
+                piece = board[current_row -1][current_col +1]
+
+                current_row -= 2
+                current_col += 2
+
+
+                count = 1
+
+                while current_row >= 0 and current_col < self.cols  and board[current_row][current_col] == piece:
+                    count += 1
+                    current_row -= 1
+                    current_col += 1
+                
+
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
+        
+
+            # bottom left
+            current_row = row + 1
+            current_col = col - 1
+
+            if current_row + 1 < self.rows and current_col >= 0 and board[current_row][current_col]:
+                piece = board[current_row + 1][current_col -1]
+
+                current_row += 2
+                current_col -= 2
+
+
+                count = 1
+
+                while current_row < self.rows and current_col >= 0 and board[current_row][current_col] == piece:
+                    count += 1
+                    current_row += 1
+                    current_col -= 1
+                
+
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
+            
+
+            # bottom right
+            current_row = row + 1
+            current_col = col + 1
+
+            if current_row +1 < self.rows and current_col + 1 < self.cols and board[current_row][current_col]:
+                piece = board[current_row +1][current_col +1]
+
+                current_row += 2
+                current_col += 2
+
+
+                count = 1
+
+                while current_row < self.rows and current_col < self.cols and board[current_row][current_col] == piece:
+                    count += 1
+                    current_row += 1
+                    current_col += 1
+                
+
+
+                if count == self.k - 1:
+                    update_ai_or_player(piece)
 
         if winner == self.ai_piece:
             return 100
@@ -1277,50 +1368,35 @@ class ConnectKAI(ConnectK):
         for row in range(self.rows):
             for col in range(self.cols):
                 if board[row][col] is None:
-                    self._check_three_in_row(
+                    self._check_three_in_row(row,col)
 
 
 
 
+    
+    def _get_moves(self,board):
 
+        moves = set()
 
-
+        for row in range(self.rows):
+            for col in range(self.cols):
+                if board[row][col] is  None:
+                    moves.add((row,col))
         
 
+        return moves
+
+
+    def _make_move(self,board,move,ai):
         
 
+        board_copy = deepcopy(board)
+        row,col =move
+
+        board_copy[row][col] = self.computer_piece if ai else self.player_piece
+        return board_copy
 
         
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     def _minimax(self,board,depth=4,ai=True,move=None):
@@ -1340,9 +1416,9 @@ class ConnectKAI(ConnectK):
             bestValue = float("-inf")
             bestMove = None
             for move in self._get_moves(board):
-                new_board = self._make_move(board,move)
+                new_board = self._make_move(board,move,ai)
 
-                result = self._minimax(new_board,depth - 1,not ai,move)
+                result,_ = self._minimax(new_board,depth - 1,not ai,move)
                 if result > maxValue:
                     bestValue = result
                     bestMove = move
@@ -1350,15 +1426,15 @@ class ConnectKAI(ConnectK):
             bestValue = float("inf")
             bestMove = None
             for move in self._get_moves(board):
-                new_board = self._make_move(board)
+                new_board = self._make_move(board,ai)
 
-                result = self._minimax(new_board,depth - 1,not ai,move)
+                result,_ = self._minimax(new_board,depth - 1,not ai,move)
                 if result< maxValue:
                     bestValue = result
                     bestMove = move
 
 
-        reutrn 
+        return bestValue,bestMove
 
 
 
