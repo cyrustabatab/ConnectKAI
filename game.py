@@ -1,4 +1,5 @@
 import pygame,sys,random
+from copy import deepcopy
 from pprint import pprint
 import time
 
@@ -1075,7 +1076,8 @@ class ConnectKAI(ConnectK):
                     if current_time - computer_start_time >= 2:
                         computer_start_time = None
                 if computer_start_time is None:
-                    row,col = self._make_random_move()
+                    #row,col = self._make_random_move()
+                    row,col = self.ai_make_move()
                     set_up_game_over(row,col)
                     self._switch_turns()
             
@@ -1135,7 +1137,9 @@ class ConnectKAI(ConnectK):
         board_copy = deepcopy(self.board)
         
         depth = 4
-        self._minimax(board_copy,depth)
+        _,col = self._minimax(board_copy,depth)
+        row = self._place_piece(col)
+        return row,col
    
 
     def _get_moves(self,board):
@@ -1153,10 +1157,10 @@ class ConnectKAI(ConnectK):
     
 
     
-    def _is_terminal_state(self,board):
+    def _is_terminal_state(self,board,move):
 
-
-        game_over,winner,_ = self._check_game_over(board)
+        row,col = move
+        game_over,winner,_ = self._check_game_over(board,row,col)
 
 
         if winner:
@@ -1167,7 +1171,7 @@ class ConnectKAI(ConnectK):
                 break
         else:
             # has to be draw
-            return True,None
+            return True,'draw'
 
 
         return False,None
@@ -1183,20 +1187,20 @@ class ConnectKAI(ConnectK):
             
 
             def update_ai_or_player(piece):
-                nonlocal ai_count,nonlocal player_count 
+                nonlocal ai_count,player_count 
                 if piece == self.computer_piece:
                     ai_count += 1
                 else:
                     player_count += 1
 
-
+            
             # check to left
-            if current_col - 1 >= 0 and board[row][current_col - 1]:
-                piece = board[row][current_col - 1]
+            if col - 1 >= 0 and board[row][col - 1]:
+                piece = board[row][col - 1]
                 count = 1
 
 
-                current_col -= 2
+                current_col = col -2 
 
                 while current_col >= 0 and board[row][current_col] == piece:
                     count += 1
@@ -1211,10 +1215,10 @@ class ConnectKAI(ConnectK):
 
             # check to right
 
-            if current_col + 1 < self.cols and board[row][current_col + 1]:
-                piece = board[row][current_col + 1]
+            if col + 1 < self.cols and board[row][col + 1]:
+                piece = board[row][col + 1]
 
-                current_col += 2
+                current_col = col + 2
                 count = 1
                 while current_col < self.cols and board[row][current_col] == piece:
                     count += 1
@@ -1228,10 +1232,10 @@ class ConnectKAI(ConnectK):
             #  check up
 
     
-            if current_row - 1 >= 0 and board[current_row -1][col]:
-                piece = board[current_row -1][col]
+            if row - 1 >= 0 and board[row -1][col]:
+                piece = board[row -1][col]
 
-                current_row -= 2
+                current_row = row - 2
                 count = 1
 
                 while current_row >= 0 and board[current_row][col] == piece:
@@ -1244,11 +1248,11 @@ class ConnectKAI(ConnectK):
 
             # check down
 
-            if current_row + 1 < self.rows and board[current_row + 1][col]:
-                piece = board[current_row + 1][col]
+            if row + 1 < self.rows and board[row + 1][col]:
+                piece = board[row + 1][col]
 
 
-                current_row += 2
+                current_row = row + 2
                 count = 1
 
                 while current_row < self.rows  and board[current_row][col] == piece:
@@ -1264,11 +1268,11 @@ class ConnectKAI(ConnectK):
             current_row = row - 1
             current_col = col - 1
 
-            if current_row -1 >= 0 and current_col >= 0 and board[current_row][current_col]:
-                piece = board[current_row -1][current_col -1]
+            if current_row>= 0 and current_col >= 0 and board[current_row][current_col]:
+                piece = board[current_row][current_col]
 
-                current_row -= 2
-                current_col -= 2
+                current_row -= 1
+                current_col -= 1
 
 
                 count = 1
@@ -1287,11 +1291,11 @@ class ConnectKAI(ConnectK):
             current_row = row - 1
             current_col = col + 1
 
-            if current_row -1 >= 0 and current_col < self.cols and board[current_row][current_col]:
-                piece = board[current_row -1][current_col +1]
+            if current_row >= 0 and current_col < self.cols and board[current_row][current_col]:
+                piece = board[current_row][current_col]
 
-                current_row -= 2
-                current_col += 2
+                current_row -= 1
+                current_col += 1
 
 
                 count = 1
@@ -1311,11 +1315,11 @@ class ConnectKAI(ConnectK):
             current_row = row + 1
             current_col = col - 1
 
-            if current_row + 1 < self.rows and current_col >= 0 and board[current_row][current_col]:
-                piece = board[current_row + 1][current_col -1]
+            if current_row< self.rows and current_col >= 0 and board[current_row][current_col]:
+                piece = board[current_row][current_col]
 
-                current_row += 2
-                current_col -= 2
+                current_row += 1
+                current_col -= 1
 
 
                 count = 1
@@ -1335,11 +1339,11 @@ class ConnectKAI(ConnectK):
             current_row = row + 1
             current_col = col + 1
 
-            if current_row +1 < self.rows and current_col + 1 < self.cols and board[current_row][current_col]:
-                piece = board[current_row +1][current_col +1]
+            if current_row< self.rows and current_col< self.cols and board[current_row][current_col]:
+                piece = board[current_row][current_col]
 
-                current_row += 2
-                current_col += 2
+                current_row += 1
+                current_col += 1
 
 
                 count = 1
@@ -1353,24 +1357,31 @@ class ConnectKAI(ConnectK):
 
                 if count == self.k - 1:
                     update_ai_or_player(piece)
+            
 
-        if winner == self.ai_piece:
+            return ai_count,player_count
+
+        if winner == self.computer_piece:
             return 100
         elif winner == self.player_piece:
             return -100
-        else:
+        elif winner == 'draw':
             return 0
 
     
         three_in_row_with_open_ai = three_in_a_row_with_open_player = 0 
 
 
+
+        ai_count = player_count = 0
         for row in range(self.rows):
             for col in range(self.cols):
                 if board[row][col] is None:
-                    self._check_three_in_row(row,col)
+                    results = _check_three_in_a_row(row,col)
+                    ai_count += results[0]
+                    player_count += results[1]
 
-
+        return ai_count - player_count        
 
 
     
@@ -1378,23 +1389,27 @@ class ConnectKAI(ConnectK):
 
         moves = set()
 
-        for row in range(self.rows):
-            for col in range(self.cols):
-                if board[row][col] is  None:
-                    moves.add((row,col))
+        for col in range(self.cols):
+            if board[0][col] is None:
+                moves.add(col)
         
 
         return moves
 
 
-    def _make_move(self,board,move,ai):
+    def _make_move(self,board,col,ai):
         
 
         board_copy = deepcopy(board)
-        row,col =move
+
+        row = self.rows - 1
+
+        while row >= 0 and board[row][col]:
+            row -= 1
+
 
         board_copy[row][col] = self.computer_piece if ai else self.player_piece
-        return board_copy
+        return board_copy,row
 
         
 
@@ -1403,11 +1418,11 @@ class ConnectKAI(ConnectK):
 
 
 
-        
-        terminal_state = self._is_terminal_state(board) 
+        if move:
+            terminal_state,winner = self._is_terminal_state(board,move) 
 
-        if terminal_state or depth == 0:
-            return self._heuristic(board,move)
+            if terminal_state or depth == 0:
+                return self._heuristic(board,winner),None
 
 
         
@@ -1416,20 +1431,20 @@ class ConnectKAI(ConnectK):
             bestValue = float("-inf")
             bestMove = None
             for move in self._get_moves(board):
-                new_board = self._make_move(board,move,ai)
+                new_board,row = self._make_move(board,move,ai)
 
-                result,_ = self._minimax(new_board,depth - 1,not ai,move)
-                if result > maxValue:
+                result,_ = self._minimax(new_board,depth - 1,not ai,(row,move))
+                if result > bestValue:
                     bestValue = result
                     bestMove = move
         else:            
             bestValue = float("inf")
             bestMove = None
             for move in self._get_moves(board):
-                new_board = self._make_move(board,ai)
+                new_board,row = self._make_move(board,move,ai)
 
-                result,_ = self._minimax(new_board,depth - 1,not ai,move)
-                if result< maxValue:
+                result,_ = self._minimax(new_board,depth - 1,not ai,(row,move))
+                if result< bestValue:
                     bestValue = result
                     bestMove = move
 
