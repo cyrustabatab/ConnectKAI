@@ -1131,14 +1131,18 @@ class ConnectKAI(ConnectK):
         self._initialize_turn_text()
     
     
-    def ai_make_move(self):
-
+    def ai_make_move(self): 
 
         board_copy = deepcopy(self.board)
         
-        depth = 4
-        _,col = self._minimax(board_copy,depth)
-        row = self._place_piece(col)
+        depth = 2
+        _,move = self._minimax(board_copy,depth)
+        if self.gravity:
+            col = move
+            row = self._place_piece(col)
+        else:
+            row,col = move
+            self.board[row][col] = self.turn
         return row,col
    
 
@@ -1387,12 +1391,20 @@ class ConnectKAI(ConnectK):
     
     def _get_moves(self,board):
 
-        moves = set()
 
-        for col in range(self.cols):
-            if board[0][col] is None:
-                moves.add(col)
+
+
+        moves = set()
+        if self.gravity:
+            for col in range(self.cols):
+                if board[0][col] is None:
+                    moves.add(col)
         
+        else:
+            for row in range(self.rows):
+                for col in range(self.cols):
+                    if board[row][col] is None:
+                        moves.add((row,col))
 
         return moves
 
@@ -1424,16 +1436,23 @@ class ConnectKAI(ConnectK):
             if terminal_state or depth == 0:
                 return self._heuristic(board,winner),None
 
-
         
 
         if ai:
             bestValue = float("-inf")
             bestMove = None
             for move in self._get_moves(board):
-                new_board,row = self._make_move(board,move,ai)
+                if self.gravity:
+                    new_board,row = self._make_move(board,move,ai)
+                    col = move
+                else:
+                    new_board = deepcopy(board)
+                    row,col = move
+                    new_board[row][col] = self.computer_piece
 
-                result,_ = self._minimax(new_board,depth - 1,not ai,(row,move))
+
+
+                result,_ = self._minimax(new_board,depth - 1,not ai,(row,col))
                 if result > bestValue:
                     bestValue = result
                     bestMove = move
@@ -1441,9 +1460,15 @@ class ConnectKAI(ConnectK):
             bestValue = float("inf")
             bestMove = None
             for move in self._get_moves(board):
-                new_board,row = self._make_move(board,move,ai)
+                if self.gravity:
+                    new_board,row = self._make_move(board,move,ai)
+                    col = move
+                else:
+                    new_board = deepcopy(board)
+                    row,col = move
+                    new_board[row][col] = self.player_piece
 
-                result,_ = self._minimax(new_board,depth - 1,not ai,(row,move))
+                result,_ = self._minimax(new_board,depth - 1,not ai,(row,col))
                 if result< bestValue:
                     bestValue = result
                     bestMove = move
