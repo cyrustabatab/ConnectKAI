@@ -1135,8 +1135,9 @@ class ConnectKAI(ConnectK):
 
         board_copy = deepcopy(self.board)
         
-        depth = 2
-        _,move = self._minimax(board_copy,depth)
+        depth = 6
+        #_,move = self._minimax(board_copy,depth)
+        _,move = self._minimax_alpha_beta(board_copy,depth)
         if self.gravity:
             col = move
             row = self._place_piece(col)
@@ -1366,9 +1367,9 @@ class ConnectKAI(ConnectK):
             return ai_count,player_count
 
         if winner == self.computer_piece:
-            return 100
+            return float("inf")
         elif winner == self.player_piece:
-            return -100
+            return float("-inf")
         elif winner == 'draw':
             return 0
 
@@ -1424,6 +1425,62 @@ class ConnectKAI(ConnectK):
         return board_copy,row
 
         
+    
+    def _minimax_alpha_beta(self,board,depth,alpha=float("-inf"),beta=float("inf"),ai=True,move=None):
+        if move:
+            terminal_state,winner = self._is_terminal_state(board,move) 
+
+            if terminal_state or depth == 0:
+                return self._heuristic(board,winner),None
+
+        
+
+        if ai:
+            bestValue = float("-inf")
+            bestMove = None
+            for move in self._get_moves(board):
+                if self.gravity:
+                    new_board,row = self._make_move(board,move,ai)
+                    col = move
+                else:
+                    new_board = deepcopy(board)
+                    row,col = move
+                    new_board[row][col] = self.computer_piece
+
+
+
+                result,_ = self._minimax_alpha_beta(new_board,depth - 1,alpha,beta,not ai,(row,col))
+                if result > bestValue:
+                    bestValue = result
+                    bestMove = move
+
+                alpha = max(result,alpha)
+                if beta <= alpha:
+                    break
+        else:            
+            bestValue = float("inf")
+            bestMove = None
+            for move in self._get_moves(board):
+                if self.gravity:
+                    new_board,row = self._make_move(board,move,ai)
+                    col = move
+                else:
+                    new_board = deepcopy(board)
+                    row,col = move
+                    new_board[row][col] = self.player_piece
+
+                result,_ = self._minimax_alpha_beta(new_board,depth - 1,alpha,beta,not ai,(row,col))
+                if result< bestValue:
+                    bestValue = result
+                    bestMove = move
+
+                beta = min(beta,result)
+                if beta <= alpha:
+                    break
+
+        return bestValue,bestMove
+
+
 
 
     def _minimax(self,board,depth=4,ai=True,move=None):
