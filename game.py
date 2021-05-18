@@ -102,7 +102,8 @@ class Menu:
         buttons_x = screen_width//2 - button_width//2
         self.two_player_button = Button(buttons_x,self.title_text_rect.bottom + top_gap,"TWO PLAYER",self.menu_font,button_width,button_height)
         self.computer_button = Button(buttons_x,self.title_text_rect.bottom + 2 * top_gap + button_height,"COMPUTER",self.menu_font,button_width,button_height)
-        self.buttons = pygame.sprite.Group(self.two_player_button,self.computer_button)
+        self.simulation_button = Button(buttons_x,self.title_text_rect.bottom + 3 * top_gap + 2 * button_height,"SIMULATION",self.menu_font,button_width,button_height)
+        self.buttons = pygame.sprite.Group(self.two_player_button,self.computer_button,self.simulation_button)
         pygame.mixer.music.load('mainmenu.ogg')
         pygame.mixer.music.play(-1)
 
@@ -413,7 +414,7 @@ class Menu:
                                     if result is not None:
                                         k,rows,cols = result
                                         square_size = BOARD_HEIGHT//rows
-                                        class_ = ConnectK if i ==0 else ConnectKAI
+                                        class_ = ConnectK if i ==0 else ConnectKAI if i == 1 else ConnectKSimulation
 
                                         connect_k = class_(rows,cols,k,square_size,gravity=gravity)
                                         #self._custom_screen()
@@ -600,7 +601,6 @@ class ConnectK:
             up_count += 1
             winners.add((current_row,col))
             if up_count == self.k:
-                print('up')
                 return True,self.turn,winners
             current_row -= 1
 
@@ -615,7 +615,6 @@ class ConnectK:
             down_count += 1
             winners.add((current_row,col))
             if down_count == self.k:
-                print('down')
                 return True,self.turn,winners
 
 
@@ -634,7 +633,6 @@ class ConnectK:
             left_count += 1
             winners.add((row,current_col))
             if left_count == self.k:
-                print('left')
                 return True,turn,winners
             current_col -= 1
         
@@ -646,7 +644,6 @@ class ConnectK:
             right_count += 1
             winners.add((row,current_col))
             if right_count == self.k:
-                print('right')
                 return True,turn,winners
             
             current_col += 1
@@ -926,6 +923,8 @@ class ConnectK:
             self.turn_text = self.red_turn_text
 
 
+
+
 class ConnectKAI(ConnectK):
 
     def _set_up_initial_text(self):
@@ -1135,7 +1134,7 @@ class ConnectKAI(ConnectK):
 
         board_copy = deepcopy(self.board)
         
-        depth = 6
+        depth = 4
         #_,move = self._minimax(board_copy,depth)
         _,move = self._minimax_alpha_beta(board_copy,depth)
         if self.gravity:
@@ -1562,6 +1561,134 @@ class ConnectKAI(ConnectK):
         return row,col
 
 
+class ConnectKSimulation(ConnectKAI):
+    
+
+    def _set_up_initial_text(self):
+
+
+        start = ("YELLOW " if self.turn == 'Y' else "RED ") + "AI WAS"
+        self.initial_text = self.font.render(f"{start} randomly chosen to go first!",True,self.color)
+        self.turn_text = self.initial_text
+
+
+    def _initialize_turn_text(self):
+        self.turn = random.choice(('R','Y'))
+        self.color = RED if self.turn == 'R' else YELLOW
+        self.red_ai_text = self.font.render("RED AI's TURN!",True,RED)
+        self.yellow_ai_text = self.font.render("YELLOW AI's TURN!",True,YELLOW)
+
+        self.actual_turn_text = self.red_ai_text if self.turn == 'R' else self.yellow_ai_text
+
+        self._set_up_initial_text()
+
+    def _switch_turns(self):
+
+        if self.turn == 'R':
+            self.turn ='Y'
+            self.color = YELLOW
+        else:
+            self.turn = 'R'
+            self.color = RED
+        self.turn_text = self.red_ai_text if self.turn == 'R' else self.yellow_ai_text
+
+
+    def _play_game(self):
+
+        
+        buttons = pygame.sprite.Group()
+        
+        button_width = 150
+        button_height = button_width/2
+        
+        buttons_x = self.board_width + (self.screen_width - self.board_width)//2 - button_width//2
+        button_font = pygame.font.SysFont("calibri",30)
+
+        play_again_button = Button(buttons_x,self.gap + 50,"PLAY AGAIN",button_font,button_width,button_height)
+        menu_button = Button(buttons_x,self.gap + 100 + button_height,"MENU",button_font,button_width,button_height)
+        buttons.add(play_again_button,menu_button)
+
+        winning_squares = None
+        invalid = False
+        computer_start_time = None
+
+
+        def set_up_game_over(row,col):
+            game_over,_,winning_squares = self._check_game_over(self.board,row,col)
+            if game_over:
+                winner,color = ('RED AI WINS',RED) if self.turn == 'R' else ('YELLOW AI WINS!',YELLOW)
+                self.winner_text= self.font.render(winner,True,color)
+                self.game_over= True
+            self.turns += 1
+            if not self.game_over and self.turns == self.rows * self.cols:
+                self.winner_text = self.font.render(f"TIE!",True,BLACK)
+                self.game_over = True
+        
+        initial_start_time = time.time()
+        while True:
+            
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return
+                if self.game_over and event.type == pygame.MOUSEBUTTONDOWN:
+                        point = pygame.mouse.get_pos()
+                        for i,button in enumerate(buttons):
+                            if button.is_clicked_on(point):
+                                if i == 0:
+                                    winning_squares = None
+                                    initial_start_time = time.time()
+                                    self._reset()
+                                else:
+                                    return
+
+            current_time = time.time()
+            
+            if initial_start_time:
+                if current_time - initial_start_time >= 2:
+                    initial_start_time = None
+                    self.turn_text = self.actual_turn_text
+                    computer_start_time = current_time
+
+            if not self.game_over and not initial_start_time:
+
+                if current_time - computer_start_time >= 2:
+                    computer_start_time =  current_time
+                    #row,col = self._make_random_move()
+                    self.computer_piece,self.player_piece = ('R','Y') if self.turn == 'R' else ('Y','R')
+                    row,col = self.ai_make_move()
+                    set_up_game_over(row,col)
+                    self._switch_turns()
+            
+
+
+
+            self.screen.fill(BGCOLOR)
+            
+            
+            if self.game_over:
+                point = pygame.mouse.get_pos()
+                buttons.update(point)
+                buttons.draw(self.screen)
+                
+            
+            
+            self._draw_board(winning_squares)
+
+            self._draw_text()
+
+            pygame.display.update()
+            clock.tick(FPS)
+    
+
+
+
+
+
+
 
 
 
@@ -1570,6 +1697,7 @@ if __name__ == "__main__":
     
 
     menu = Menu()
+    print('here')
 
 
         
